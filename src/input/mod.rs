@@ -1,3 +1,4 @@
+mod hangul;
 mod keybind_help;
 mod keybindings;
 mod lease;

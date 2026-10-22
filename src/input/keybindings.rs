@@ -83,11 +83,20 @@ pub(crate) fn resolve_prefix_binding(
     keybinds: &Keybinds,
     key: &TerminalKey,
 ) -> Option<KeybindMatch> {
-    resolve_exact_binding(keybinds, key, KeybindDispatch::Prefix).or_else(|| {
-        generated_character_key(key).and_then(|generated_key| {
-            resolve_exact_binding(keybinds, &generated_key, KeybindDispatch::Prefix)
+    resolve_exact_binding(keybinds, key, KeybindDispatch::Prefix)
+        .or_else(|| {
+            generated_character_key(key).and_then(|generated_key| {
+                resolve_exact_binding(keybinds, &generated_key, KeybindDispatch::Prefix)
+            })
         })
-    })
+        // With the Korean input source a prefix key arrives as its jamo
+        // (\u{315c} for n). Prefix mode only reads commands, so the jamo can
+        // stand for its US key without taking any typing away.
+        .or_else(|| {
+            super::hangul::dubeolsik_terminal_key(key).and_then(|latin_key| {
+                resolve_exact_binding(keybinds, &latin_key, KeybindDispatch::Prefix)
+            })
+        })
 }
 
 pub(crate) fn resolve_non_indexed_action(
@@ -259,6 +268,35 @@ mod tests {
     use crossterm::event::{KeyCode, KeyModifiers};
 
     use super::*;
+
+    #[test]
+    fn korean_input_source_reaches_prefix_and_its_commands() {
+        let (live, _diagnostics) = crate::config::Config::default()
+            .live_keybinds_with_diagnostics()
+            .expect("default keybinds");
+        let keybinds = live.keybinds.clone();
+        // Ctrl+B typed on the Korean input source, as iTerm2 reports it.
+        let prefix =
+            crate::input::parse_terminal_key_sequence("\x1b[12640;5u").expect("kitty key report");
+        assert!(live.matches_prefix(&prefix));
+        for (jamo, action) in [
+            ('ㅜ', KeybindAction::NextTab),
+            ('ㅔ', KeybindAction::PreviousTab),
+        ] {
+            let key = TerminalKey::new(KeyCode::Char(jamo), KeyModifiers::empty());
+            assert!(
+                matches!(
+                    resolve_prefix_binding(&keybinds, &key),
+                    Some(KeybindMatch::Action(resolved)) if resolved == action
+                ),
+                "{jamo}"
+            );
+            assert!(
+                resolve_direct_binding(&keybinds, &key).is_none(),
+                "{jamo} must stay typing outside prefix mode"
+            );
+        }
+    }
 
     #[test]
     fn clear_pane_is_unbound_by_default_and_configurable() {

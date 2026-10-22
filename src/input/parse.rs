@@ -58,8 +58,15 @@ fn parse_kitty_key_sequence(data: &str) -> Option<TerminalKey> {
     // (\u{f6}, \u{131}, \u{e5}) keep their own keys.
     let mut shifted_codepoint = shifted_codepoint;
     let mut layout_key = None;
-    if let (KeyCode::Char(ch), Some(base)) = (code, base_layout_codepoint.and_then(char::from_u32))
-    {
+    // Hosts that leave the base-layout field out (iTerm2 on the Korean input
+    // source) still name the key through the standard dubeolsik layout.
+    let base_layout = base_layout_codepoint
+        .and_then(char::from_u32)
+        .or(match code {
+            KeyCode::Char(ch) => super::hangul::dubeolsik_key(ch),
+            _ => None,
+        });
+    if let (KeyCode::Char(ch), Some(base)) = (code, base_layout) {
         // A shifted alternate means Shift was held, even if the modifier
         // field leaves it out (normalized below).
         let shifted = shifted_codepoint.is_some_and(|shifted| shifted != codepoint);
@@ -889,6 +896,23 @@ mod tests {
                 assert_terminal_key_eq(key, KeyCode::Char('a'), KeyModifiers::CONTROL, kind, None);
             }
         }
+    }
+
+    #[test]
+    fn parse_ctrl_hangul_without_base_layout_as_its_dubeolsik_key() {
+        // iTerm2 on the Korean input source: Ctrl+B arrives as Ctrl+\u{3160}.
+        let key = parse_terminal_key_sequence("\x1b[12640;5u").unwrap();
+        assert_eq!(
+            (key.code, key.modifiers),
+            (KeyCode::Char('b'), KeyModifiers::CONTROL)
+        );
+        assert_eq!(key.layout_key(), Some('\u{3160}'));
+        // Without Ctrl it is typing and keeps the jamo.
+        let key = parse_terminal_key_sequence("\x1b[12640u").unwrap();
+        assert_eq!(
+            (key.code, key.modifiers),
+            (KeyCode::Char('\u{3160}'), KeyModifiers::empty())
+        );
     }
 
     /// Without a base-layout field nothing can be rewritten, so stripping it
