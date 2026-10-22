@@ -1,6 +1,6 @@
 use crate::config::{
     AgentSidebarToken, AgentsSidebarConfig, SidebarTokenStyle, SpaceSidebarToken,
-    SpacesSidebarConfig,
+    SpacesSidebarConfig, UsagesSidebarConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,9 +134,33 @@ pub(crate) fn space_rows(
     config: &SpacesSidebarConfig,
     context: SpaceTokenContext<'_>,
 ) -> Vec<Vec<ResolvedToken>> {
-    config
-        .rows
-        .iter()
+    resolve_space_token_rows(&config.rows, context)
+}
+
+/// Resolves Usages rows. Config parsing admits only custom tokens there, so
+/// the empty Space context never contributes a built-in value.
+pub(crate) fn usage_rows(
+    config: &UsagesSidebarConfig,
+    tokens: &std::collections::HashMap<String, String>,
+) -> Vec<Vec<ResolvedToken>> {
+    resolve_space_token_rows(
+        &config.rows,
+        SpaceTokenContext {
+            workspace: "",
+            branch: None,
+            state_text: "",
+            ahead_behind: None,
+            tokens,
+            suppress_git_details: true,
+        },
+    )
+}
+
+fn resolve_space_token_rows(
+    rows: &[Vec<SpaceSidebarToken>],
+    context: SpaceTokenContext<'_>,
+) -> Vec<Vec<ResolvedToken>> {
+    rows.iter()
         .filter_map(|row| {
             let resolved = row
                 .iter()

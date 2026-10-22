@@ -475,11 +475,39 @@ impl Default for SpacesSidebarConfig {
     }
 }
 
+fn deserialize_usage_rows<'de, D>(deserializer: D) -> Result<SpaceSidebarRows, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let rows = deserialize_sidebar_rows::<D, SpaceSidebarToken>(deserializer)?;
+    let only_custom = rows
+        .iter()
+        .flatten()
+        .all(|token| matches!(token.parts().0, SpaceSidebarToken::Custom(_)));
+    if !only_custom {
+        return Err(serde::de::Error::custom(
+            "usages sidebar rows accept only custom `$name` tokens",
+        ));
+    }
+    Ok(rows)
+}
+
+/// Usages section below the Agent panel. Its rows hold custom `$name` tokens
+/// only, read from workspace metadata. The section stays hidden until a row
+/// has a reported value, so the empty default changes nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct UsagesSidebarConfig {
+    #[serde(deserialize_with = "deserialize_usage_rows")]
+    pub rows: SpaceSidebarRows,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SidebarConfig {
     pub agents: AgentsSidebarConfig,
     pub spaces: SpacesSidebarConfig,
+    pub usages: UsagesSidebarConfig,
 }
 
 #[cfg(test)]
@@ -672,6 +700,33 @@ rows = [[{ token = "$status", rules = [{ contains = "error", bold = true }] }]]
             assert!(
                 toml::from_str::<crate::config::Config>(&input).is_err(),
                 "accepted {entry}"
+            );
+        }
+    }
+
+    #[test]
+    fn usages_rows_default_empty_and_accept_only_custom_tokens() {
+        assert!(SidebarConfig::default().usages.rows.is_empty());
+
+        let parsed = toml::from_str::<SidebarConfig>(
+            "[usages]\nrows = [[\"$limits_a\"], [{ token = \"$limits_b\", fg = \"#fff\" }]]",
+        )
+        .expect("custom usage tokens parse");
+        assert_eq!(parsed.usages.rows.len(), 2);
+        assert_eq!(
+            parsed.usages.rows[0],
+            vec![SpaceSidebarToken::Custom("limits_a".to_string())]
+        );
+
+        for token in [
+            "\"workspace\"",
+            "\"state_icon\"",
+            "{ token = \"branch\", bold = true }",
+        ] {
+            let input = format!("[usages]\nrows = [[{token}]]");
+            assert!(
+                toml::from_str::<SidebarConfig>(&input).is_err(),
+                "accepted built-in {token} in usages rows"
             );
         }
     }

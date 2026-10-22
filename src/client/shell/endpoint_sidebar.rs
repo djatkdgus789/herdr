@@ -553,9 +553,12 @@ pub(super) fn render_expanded(
             }),
         );
     }
+    let usage_rows = super::usage_sidebar::usage_section_rows(active_snapshot, config);
+    let (agent_area, usage_area) =
+        super::usage_sidebar::split_usage_section(detail_area, usage_rows.len());
     super::endpoint_agents::render_expanded(
         buffer,
-        detail_area,
+        agent_area,
         active_snapshot.and_then(|snapshot| snapshot.agent_view_label.as_deref()),
         state.endpoints,
         state.active_endpoint_id,
@@ -563,6 +566,7 @@ pub(super) fn render_expanded(
         state.agent_scroll,
         hits,
     );
+    super::usage_sidebar::render_usage_panel(buffer, usage_area, &usage_rows, config);
     hits.sidebar_toggle = Rect::new(
         area.right().saturating_sub(2),
         area.bottom().saturating_sub(1),

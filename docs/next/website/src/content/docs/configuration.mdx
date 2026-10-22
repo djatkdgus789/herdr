@@ -475,6 +475,16 @@ herdr pane report-metadata <pane_id> \
 
 Use `herdr workspace report-metadata` in the same way for custom Space tokens. Unreported custom tokens disappear.
 
+Workspace tokens can also appear once, in a Usages section below the Agent panel, instead of under a Space. Its rows accept only custom `$name` tokens; when several Spaces report the same name, the first Space in the sidebar wins. The section stays hidden until one of its rows has a value:
+
+```toml
+[ui.sidebar.usages]
+rows = [
+  ["$limits_claude"],
+  [{ token = "$limits_claude_max", dim = true }],
+]
+```
+
 Metadata reporters provide values only; styling stays in the local sidebar configuration. See [CLI reference: report metadata](/docs/cli-reference/#panes) for limits, clearing, sequencing, and expiry.
 
 Sidebar row settings affect only the expanded desktop sidebar. Collapsed and mobile views keep their compact layouts.

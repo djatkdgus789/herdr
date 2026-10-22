@@ -430,14 +430,18 @@ pub(crate) fn render_sidebar(
         }
     }
 
+    let usage_rows = super::usage_sidebar::usage_section_rows(Some(snapshot), config);
+    let (agent_area, usage_area) =
+        super::usage_sidebar::split_usage_section(detail_area, usage_rows.len());
     super::render_agent_panel(
         buffer,
-        detail_area,
+        agent_area,
         snapshot,
         config,
         state.agent_scroll,
         hits,
     );
+    super::usage_sidebar::render_usage_panel(buffer, usage_area, &usage_rows, config);
 
     hits.sidebar_toggle = Rect::new(
         area.right().saturating_sub(2),

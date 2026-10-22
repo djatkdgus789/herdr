@@ -1091,6 +1091,12 @@
           "description": "Expanded Space sidebar layout. Entries may be token strings or inline { token, fg, bold, dim, rules } style tables. Text-valued built-ins and $name metadata tokens accept up to 16 ordered rules using equals, contains, starts_with, gt, or lt; the first match overrides specified styles. Text conditions optionally accept ignore_case for ASCII matching; numeric conditions require full finite numbers. state_icon and git_status accept fixed styles only. At most 16 rows and 16 tokens per row."
         },
         {
+          "key": "ui.sidebar.usages.rows",
+          "type": "list of token rows",
+          "default": "[]",
+          "description": "Expanded Usages section below the Agent panel. Rows accept only custom $name tokens, read from workspace metadata (the first Space reporting a name wins), with the same style tables and rules as Space rows. The section is hidden while no row has a reported value. At most 16 rows and 16 tokens per row."
+        },
+        {
           "key": "ui.accent",
           "type": "color",
           "default": "\"cyan\"",
